@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Deep Space & Interstellar Flight Simulator</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: #030508;
+      color: #00ffcc;
+      font-family: 'Courier New', Courier, monospace;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    /* Navigation Header */
+    nav {
+      background: rgba(8, 14, 24, 0.95);
+      border-bottom: 1px solid #00ffcc;
+      padding: 10px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 100;
+    }
+
+    .brand-title {
+      font-weight: 700;
+      font-size: 1rem;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: #00ffcc;
+      text-shadow: 0 0 8px #00ffcc;
+    }
+
+    .nav-btn {
+      background: #002b26;
+      border: 1px solid #00ffcc;
+      color: #00ffcc;
+      padding: 6px 14px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: inherit;
+      font-weight: bold;
+      text-decoration: none;
+      font-size: 0.8rem;
+      transition: all 0.2s ease;
+    }
+    .nav-btn:hover { background: #00ffcc; color: #000; box-shadow: 0 0 10px #00ffcc; }
+
+    #simulator-container {
+      position: relative;
+      flex: 1;
+      width: 100vw;
+      background: #000;
+      overflow: hidden;
+    }
+
+    canvas#space-canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+    }
+
+    .cockpit-frame {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 2;
+      pointer-events: none;
+      box-shadow: inset 0 0 120px rgba(0,0,0,0.85);
+      border: 16px solid #121620;
+    }
+
+    /* HUD Interface */
+    .hud-layer {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      z-index: 3;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 24px;
+      pointer-events: none;
+    }
+
+    .hud-header {
+      text-align: center;
+      font-size: 1.2rem;
+      letter-spacing: 2px;
+      text-shadow: 0 0 10px #00ffcc;
+      font-weight: bold;
+    }
+
+    .hud-panels {
+      display: grid;
+      grid-template-columns: 280px 1fr 300px;
+      gap: 20px;
+      align-items: flex-end;
+    }
+
+    .panel {
+      background: rgba(6, 12, 20, 0.85);
+      border: 1px solid #00ffcc;
+      padding: 14px 18px;
+      border-radius: 6px;
+      pointer-events: auto;
+      backdrop-filter: blur(6px);
+    }
+
+    .panel h3 {
+      font-size: 0.85rem;
+      margin-bottom: 8px;
+      color: #ffffff;
+      border-bottom: 1px solid #00ffcc;
+      padding-bottom: 4px;
+      letter-spacing: 1px;
+    }
+
+    .metric-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 6px;
+      font-size: 0.85rem;
+    }
+
+    .metric-val {
+      font-weight: bold;
+      color: #00ffcc;
+    }
+
+    .control-btn {
+      background: #002b26;
+      color: #00ffcc;
+      border: 1px solid #00ffcc;
+      padding: 8px 12px;
+      margin: 4px 0;
+      cursor: pointer;
+      width: 100%;
+      font-family: inherit;
+      font-weight: bold;
+      font-size: 0.8rem;
+      transition: all 0.2s ease;
+      text-align: center;
+    }
+
+    .control-btn:hover {
+      background: #00ffcc;
+      color: #000;
+      box-shadow: 0 0 10px #00ffcc;
+    }
+
+    select.target-select {
+      width: 100%;
+      background: #040d1a;
+      color: #00ffcc;
+      border: 1px solid #00ffcc;
+      padding: 8px;
+      font-family: inherit;
+      font-weight: bold;
+      margin-bottom: 10px;
+      border-radius: 4px;
+    }
+
+    .spec-box {
+      font-size: 0.75rem;
+      color: #a0e6db;
+      line-height: 1.4;
+      margin-top: 8px;
+      border-top: 1px dashed #00ffcc;
+      padding-top: 8px;
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="brand-title">DEEP SPACE NAVIGATION &amp; LANDING COCKPIT</div>
+  <a href="index.html" class="nav-btn">← Back to Slide Deck</a>
+</nav>
+
+<div id="simulator-container">
+  <canvas id="space-canvas"></canvas>
+  <div class="cockpit-frame"></div>
+
+  <div class="hud-layer">
+    <div class="hud-header">
+      SOLAR SYSTEM &amp; DEEP SPACE NAVIGATION
+    </div>
+
+    <div class="hud-panels">
+      <!-- Left Panel: Telemetry -->
+      <div class="panel">
+        <h3>FLIGHT TELEMETRY</h3>
+        <div class="metric-row"><span>ACTIVE SYSTEM:</span> <span class="metric-val" id="target-name">Earth</span></div>
+        <div class="metric-row"><span>FLIGHT MODE:</span> <span class="metric-val" id="flight-mode">ORBIT</span></div>
+        <div class="metric-row"><span>ALTITUDE / DISTANCE:</span> <span class="metric-val" id="alt-val">400 km</span></div>
+        <div class="metric-row"><span>VELOCITY:</span> <span class="metric-val" id="speed-val">7.68 km/s</span></div>
+        
+        <div class="spec-box" id="spec-text">
+          Earth: Terrestrial planet with atmosphere rich in N2/O2. Surface gravity: 9.81 m/s².
+        </div>
+      </div>
+
+      <!-- Center Dynamic Banner -->
+      <div style="text-align: center; pointer-events: none;">
+        <div id="status-banner" style="font-size: 1.1rem; text-shadow: 0 0 8px #00ffcc; font-weight: bold;">
+          ORBITAL INSERTION CONFIRMED
+        </div>
+      </div>
+
+      <!-- Right Panel: Navigation Controls -->
+      <div class="panel">
+        <h3>CELESTIAL DESTINATION</h3>
+        <select class="target-select" id="destinationSelect" onchange="changeTarget()">
+          <optgroup label="Inner Planets & Moons">
+            <option value="Mercury">Mercury</option>
+            <option value="Venus">Venus</option>
+            <option value="Earth" selected>Earth</option>
+            <option value="Luna">Luna (Earth's Moon)</option>
+            <option value="Mars">Mars</option>
+            <option value="Phobos">Phobos (Mars)</option>
+            <option value="Deimos">Deimos (Mars)</option>
+          </optgroup>
+          <optgroup label="Gas Giants & Moons">
+            <option value="Jupiter">Jupiter</option>
+            <option value="Io">Io (Jupiter)</option>
+            <option value="Europa">Europa (Jupiter)</option>
+            <option value="Ganymede">Ganymede (Jupiter)</option>
+            <option value="Callisto">Callisto (Jupiter)</option>
+            <option value="Saturn">Saturn</option>
+            <option value="Titan">Titan (Saturn)</option>
+            <option value="Enceladus">Enceladus (Saturn)</option>
+            <option value="Uranus">Uranus</option>
+            <option value="Neptune">Neptune</option>
+            <option value="Triton">Triton (Neptune)</option>
+          </optgroup>
+          <optgroup label="Deep Space Galaxies">
+            <option value="Andromeda">Andromeda Galaxy (M31)</option>
+            <option value="Triangulum">Triangulum Galaxy (M33)</option>
+          </optgroup>
+        </select>
+
+        <button class="control-btn" onclick="toggleWarp()">[ Interstellar Warp Drive ]</button>
+        <button class="control-btn" onclick="initiateLanding()">[ Initiate Surface Landing ]</button>
+        <button class="control-btn" onclick="ascentToOrbit()">[ Ascent to Orbit ]</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const canvas = document.getElementById('space-canvas');
+  const ctx = canvas.getContext('2d');
+
+  let width, height;
+  function resize() {
+    const container = document.getElementById('simulator-container');
+    width = canvas.width = container.clientWidth;
+    height = canvas.height = container.clientHeight;
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  // Celestial Database & Visual Profiles
+  const bodySpecs = {
+    Mercury: { type: 'planet', color: '#8c8c88', glow: 'rgba(180,180,180,0.3)', radius: 350, gravity: '3.7 m/s²', atmosphere: 'Exosphere', vel: 47.3, desc: 'Heavily cratered silicate surface with wide temperature extremes.', surfaceColor: '#52524e' },
+    Venus: { type: 'planet', color: '#e3bb76', glow: 'rgba(255,200,100,0.7)', radius: 550, gravity: '8.87 m/s²', atmosphere: '96.5% CO2 (92 atm)', vel: 35.0, desc: 'Dense sulfuric clouds with runaway greenhouse surface conditions.', surfaceColor: '#b86b28' },
+    Earth: { type: 'planet', color: '#0f3854', glow: 'rgba(0,180,255,0.8)', radius: 600, gravity: '9.81 m/s²', atmosphere: '78% N2, 21% O2', vel: 7.68, desc: 'Liquid oceans, active tectonics, and nitrogen-oxygen atmosphere.', surfaceColor: '#1d542b' },
+    Luna: { type: 'moon', color: '#9e9e9e', glow: 'rgba(200,200,200,0.2)', radius: 250, gravity: '1.62 m/s²', atmosphere: 'Vacuum', vel: 1.67, desc: 'Ancient lunar basaltic maria and silicate highland impact craters.', surfaceColor: '#3a3a3a' },
+    Mars: { type: 'planet', color: '#c1440e', glow: 'rgba(255,100,50,0.5)', radius: 450, gravity: '3.72 m/s²', atmosphere: '95% CO2 (0.006 atm)', vel: 24.1, desc: 'Iron-oxide desert dust, Olympus Mons, and Valles Marineris canyon.', surfaceColor: '#8c2d03' },
+    Phobos: { type: 'moon', color: '#665d58', glow: 'rgba(100,90,80,0.2)', radius: 120, gravity: '0.0057 m/s²', atmosphere: 'Vacuum', vel: 2.1, desc: 'Irregular carbonaceous asteroid-like moon riddled with grooves.', surfaceColor: '#38322e' },
+    Deimos: { type: 'moon', color: '#736b63', glow: 'rgba(110,100,90,0.2)', radius: 90, gravity: '0.003 m/s²', atmosphere: 'Vacuum', vel: 1.35, desc: 'Smooth regolith-covered outer martian moon with low density.', surfaceColor: '#423d38' },
+    Jupiter: { type: 'planet', color: '#b07f35', glow: 'rgba(220,160,80,0.5)', radius: 900, gravity: '24.79 m/s²', atmosphere: '89% H2, 10% He', vel: 13.0, desc: 'Gas giant featuring Great Red Spot turbulence and zonal jet bands.', surfaceColor: '#8a591e' },
+    Io: { type: 'moon', color: '#f5d442', glow: 'rgba(255,230,80,0.5)', radius: 280, gravity: '1.79 m/s²', atmosphere: 'SO2 trace', vel: 17.3, desc: 'Most volcanically active body in the Solar System due to tidal heating.', surfaceColor: '#a88d18' },
+    Europa: { type: 'moon', color: '#cce2ed', glow: 'rgba(200,230,255,0.6)', radius: 260, gravity: '1.31 m/s²', atmosphere: 'O2 trace', vel: 13.7, desc: 'Water-ice shell covering a global subsurface ocean with lineae ridges.', surfaceColor: '#7a9eb0' },
+    Ganymede: { type: 'moon', color: '#736e65', glow: 'rgba(150,140,130,0.3)', radius: 320, gravity: '1.42 m/s²', atmosphere: 'O2 trace', vel: 10.8, desc: 'Largest moon in the Solar System with its own intrinsic magnetic field.', surfaceColor: '#3d3a35' },
+    Callisto: { type: 'moon', color: '#4d4b46', glow: 'rgba(100,100,90,0.2)', radius: 310, gravity: '1.24 m/s²', atmosphere: 'CO2 trace', vel: 8.2, desc: 'Heavily cratered, ancient ice-rock surface untouched by activity.', surfaceColor: '#262523' },
+    Saturn: { type: 'planet', color: '#e2bf7d', glow: 'rgba(240,210,140,0.6)', radius: 850, rings: true, gravity: '10.44 m/s²', atmosphere: '96% H2, 3% He', vel: 9.68, desc: 'Ringed gas giant composed of icy particles and complex storm bands.', surfaceColor: '#a38448' },
+    Titan: { type: 'moon', color: '#d18628', glow: 'rgba(255,160,50,0.7)', radius: 300, gravity: '1.35 m/s²', atmosphere: '98% N2, 1.4% CH4', vel: 5.57, desc: 'Dense orange hydrocarbon haze with liquid methane lakes on surface.', surfaceColor: '#70420d' },
+    Enceladus: { type: 'moon', color: '#eef8fc', glow: 'rgba(220,245,255,0.8)', radius: 180, gravity: '0.11 m/s²', atmosphere: 'Water vapor geysers', vel: 12.6, desc: 'High-albedo ice world erupting hydrothermal ocean plumes into space.', surfaceColor: '#9bb8c4' },
+    Uranus: { type: 'planet', color: '#68b2bd', glow: 'rgba(100,220,230,0.6)', radius: 700, gravity: '8.69 m/s²', atmosphere: 'H2, He, Methane', vel: 6.8, desc: 'Ice giant tilted on its side with cold methane-rich atmosphere.', surfaceColor: '#2a5b63' },
+    Neptune: { type: 'planet', color: '#274687', glow: 'rgba(50,100,255,0.7)', radius: 680, gravity: '11.15 m/s²', atmosphere: 'H2, He, Methane', vel: 5.43, desc: 'Deep blue ice giant with supersonic winds and storm systems.', surfaceColor: '#12254a' },
+    Triton: { type: 'moon', color: '#a1bdbe', glow: 'rgba(160,200,200,0.4)', radius: 240, gravity: '0.78 m/s²', atmosphere: 'Nitrogen trace', vel: 4.39, desc: 'Retrograde moon with nitrogen ice geysers and cantaloupe terrain.', surfaceColor: '#435859' },
+    Andromeda: { type: 'galaxy', color: '#f2e3c9', glow: 'rgba(255,230,180,0.9)', radius: 1100, gravity: 'Interstellar N/A', atmosphere: 'Deep Vacuum', vel: 300, desc: 'Spiral galaxy (M31) containing ~1 trillion stars, 2.5 million ly away.', surfaceColor: '#0a0a14' },
+    Triangulum: { type: 'galaxy', color: '#c9eaf2', glow: 'rgba(180,230,255,0.9)', radius: 950, gravity: 'Interstellar N/A', atmosphere: 'Deep Vacuum', vel: 280, desc: 'Spiral galaxy (M33) in Local Group with rich star-forming H II regions.', surfaceColor: '#081017' }
+  };
+
+  let activeTarget = 'Earth';
+  let flightMode = 'ORBIT'; // ORBIT, LANDING, LANDED
+  let altitude = 400.0;
+  let velocity = 7.68;
+  let isWarping = false;
+  let warpFactor = 1.0;
+
+  // Starfield Simulation
+  const numStars = 400;
+  const stars = Array.from({ length: numStars }, () => ({
+    x: (Math.random() - 0.5) * 1600 * 2,
+    y: (Math.random() - 0.5) * 1000 * 2,
+    z: Math.random() * 1600,
+    size: Math.random() * 1.5 + 0.5
+  }));
+
+  function updateStars() {
+    const speed = isWarping ? 45.0 : velocity * 0.8 * warpFactor;
+    for (let star of stars) {
+      star.z -= speed;
+      if (star.z <= 0) {
+        star.z = 1600;
+        star.x = (Math.random() - 0.5) * width * 2;
+        star.y = (Math.random() - 0.5) * height * 2;
+      }
+    }
+  }
+
+  function drawStars() {
+    ctx.fillStyle = isWarping ? '#00ffcc' : 'white';
+    for (let star of stars) {
+      const k = 256 / star.z;
+      const px = star.x * k + width / 2;
+      const py = star.y * k + height / 2;
+
+      if (px >= 0 && px <= width && py >= 0 && py <= height) {
+        const size = (1 - star.z / 1600) * star.size * (isWarping ? 4 : 2);
+        ctx.beginPath();
+        ctx.arc(px, py, Math.max(size, 0.5), 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  }
+
+  // Render Target Planet/Moon or Galaxy
+  function drawCelestialBody() {
+    const spec = bodySpecs[activeTarget];
+    
+    if (flightMode === 'LANDED') {
+      // Surface Ground View
+      ctx.fillStyle = spec.surfaceColor;
+      ctx.beginPath();
+      ctx.rect(0, height - 180, width, 180);
+      ctx.fill();
+
+      // Terrain Horizon Highlights
+      ctx.fillStyle = spec.color;
+      ctx.beginPath();
+      ctx.arc(width / 2, height - 180, width * 0.8, Math.PI, 0);
+      ctx.fill();
+      return;
+    }
+
+    ctx.save();
+    let bodyY = height + (spec.radius - 150) - (altitude * 0.6);
+    ctx.translate(width / 2, bodyY);
+
+    // Atmosphere Glow
+    const glow = ctx.createRadialGradient(0, 0, spec.radius, 0, 0, spec.radius + 60);
+    glow.addColorStop(0, spec.glow);
+    glow.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(0, 0, spec.radius + 60, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Body Mass
+    ctx.beginPath();
+    ctx.arc(0, 0, spec.radius, 0, Math.PI * 2);
+    ctx.fillStyle = spec.color;
+    ctx.fill();
+
+    // Saturn Rings
+    if (spec.rings) {
+      ctx.strokeStyle = 'rgba(230, 200, 150, 0.6)';
+      ctx.lineWidth = 18;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, spec.radius + 120, 30, -0.2, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    ctx.restore();
+  }
+
+  function animate() {
+    ctx.fillStyle = '#030508';
+    ctx.fillRect(0, 0, width, height);
+
+    updateStars();
+    drawStars();
+    drawCelestialBody();
+
+    // Atmospheric Entry Landing Progression
+    if (flightMode === 'LANDING') {
+      if (altitude > 0) {
+        altitude = Math.max(0, altitude - 3.5);
+        velocity = Math.max(0, velocity - 0.08);
+        updateUI();
+      } else {
+        flightMode = 'LANDED';
+        document.getElementById('status-banner').innerText = "TOUCHDOWN CONFIRMED - SURFACE RECON ACTIVE";
+        updateUI();
+      }
+    }
+
+    requestAnimationFrame(animate);
+  }
+  animate();
+
+  // Control Handlers
+  function changeTarget() {
+    activeTarget = document.getElementById('destinationSelect').value;
+    const spec = bodySpecs[activeTarget];
+    flightMode = 'ORBIT';
+    altitude = 400.0;
+    velocity = spec.vel;
+    document.getElementById('status-banner').innerText = `APPROACHING ${activeTarget.toUpperCase()}`;
+    updateUI();
+  }
+
+  function toggleWarp() {
+    isWarping = true;
+    document.getElementById('status-banner').innerText = "WARP DRIVE ENGAGED - FOLDING SPACETIME";
+    setTimeout(() => {
+      isWarping = false;
+      document.getElementById('status-banner').innerText = "WARP EXIT - ORBITAL INSERTION COMPLETED";
+    }, 2500);
+  }
+
+  function initiateLanding() {
+    if (flightMode === 'LANDED') return;
+    flightMode = 'LANDING';
+    document.getElementById('status-banner').innerText = "ATMOSPHERIC ENTRY & DESCENT IN PROGRESS";
+  }
+
+  function ascentToOrbit() {
+    const spec = bodySpecs[activeTarget];
+    flightMode = 'ORBIT';
+    altitude = 400.0;
+    velocity = spec.vel;
+    document.getElementById('status-banner').innerText = "ASCENT COMPLETE - STABLE ORBIT ACHIEVED";
+    updateUI();
+  }
+
+  function updateUI() {
+    const spec = bodySpecs[activeTarget];
+    document.getElementById('target-name').innerText = activeTarget;
+    document.getElementById('flight-mode').innerText = flightMode;
+    document.getElementById('alt-val').innerText = `${altitude.toFixed(1)} km`;
+    document.getElementById('speed-val').innerText = `${velocity.toFixed(2)} km/s`;
+    document.getElementById('spec-text').innerText = `${activeTarget}: ${spec.desc} (Surface Gravity: ${spec.gravity}, Atmosphere: ${spec.atmosphere})`;
+  }
+
+  updateUI();
+</script>
+</body>
+</html>
